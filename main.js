@@ -1,12 +1,4 @@
-import {
-  app,
-  BrowserWindow,
-  Menu,
-  Notification,
-  Tray,
-  shell,
-  session,
-} from "electron";
+import { app, BrowserWindow, Menu, Tray, shell, session } from "electron";
 import { readFileSync, writeFileSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { join, dirname } from "node:path";
@@ -26,28 +18,8 @@ if (!gotLock) app.quit();
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
-let lastUnreadCount = 0;
 
 const TRAY_ICON = join(__dirname, "assets", "icon.png");
-
-// ---------------------------------------------------------------------------
-// Notification sound
-// ---------------------------------------------------------------------------
-function playNotificationSound() {
-  // Try freedesktop sound theme via canberra-gtk-play (works on most DEs)
-  execFile("canberra-gtk-play", ["-i", "message-new-instant"], (err) => {
-    if (err) {
-      // Fallback: play the freedesktop sound file directly via paplay
-      execFile(
-        "paplay",
-        ["/usr/share/sounds/freedesktop/stereo/message-new-instant.oga"],
-        () => {
-          /* ignore errors – best-effort */
-        },
-      );
-    }
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Window state persistence
@@ -130,21 +102,6 @@ function createWindow() {
       tray.setToolTip(count > 0 ? `Wave (${count} unread)` : "Wave");
     }
     app.setBadgeCount(count);
-
-    // // Send desktop notification only when window is hidden or unfocused
-    const windowHiddenOrBlurred =
-      !mainWindow.isVisible() || !mainWindow.isFocused();
-    if (count > lastUnreadCount && windowHiddenOrBlurred) {
-      const diff = count - lastUnreadCount;
-      new Notification({
-        title: "Wave",
-        body: `${diff} new message${diff > 1 ? "s" : ""}`,
-        icon: TRAY_ICON,
-        silent: false,
-      }).show();
-      playNotificationSound();
-    }
-    lastUnreadCount = count;
   });
 
   // --- External links in default browser ---
