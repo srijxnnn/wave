@@ -24,8 +24,19 @@
     "dev": "electron .",
     "build": "electron-builder"
   },
+  "build": {
+    "appId": "app.waveclient.desktop",
+    "productName": "Wave",
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Network",
+      "icon": "assets/icon.png"
+    }
+  },
   "devDependencies": {
     "electron": "^29.4.6",
-    "electron-builder": "^24.0.0"
+    "electron-builder": "^24.13.3"
   }
 }
