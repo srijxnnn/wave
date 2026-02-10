@@ -1,5 +1,14 @@
-import { app, BrowserWindow, Menu, Tray, shell, session } from "electron";
+import {
+  app,
+  BrowserWindow,
+  Menu,
+  Notification,
+  Tray,
+  shell,
+  session,
+} from "electron";
 import { readFileSync, writeFileSync } from "node:fs";
+import { execFile } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,6 +26,28 @@ if (!gotLock) app.quit();
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
+let lastUnreadCount = 0;
+
+const TRAY_ICON = join(__dirname, "assets", "icon.png");
+
+// ---------------------------------------------------------------------------
+// Notification sound
+// ---------------------------------------------------------------------------
+function playNotificationSound() {
+  // Try freedesktop sound theme via canberra-gtk-play (works on most DEs)
+  execFile("canberra-gtk-play", ["-i", "message-new-instant"], (err) => {
+    if (err) {
+      // Fallback: play the freedesktop sound file directly via paplay
+      execFile(
+        "paplay",
+        ["/usr/share/sounds/freedesktop/stereo/message-new-instant.oga"],
+        () => {
+          /* ignore errors – best-effort */
+        },
+      );
+    }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Window state persistence
@@ -99,72 +130,88 @@ function createWindow() {
       tray.setToolTip(count > 0 ? `Wave (${count} unread)` : "Wave");
     }
     app.setBadgeCount(count);
+    lastUnreadCount = count;
   });
 
-  // --- External links in default browser ---
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (!url.startsWith("https://web.whatsapp.com")) {
-      shell.openExternal(url);
-      return { action: "deny" };
-    }
-    return { action: "allow" };
-  });
-
-  mainWindow.webContents.on("will-navigate", (e, url) => {
-    if (!url.startsWith("https://web.whatsapp.com")) {
-      e.preventDefault();
-      shell.openExternal(url);
-    }
-  });
-
-  // --- Keyboard shortcuts (no menu bar needed) ---
-  mainWindow.webContents.on("before-input-event", (_e, input) => {
-    if (input.type !== "keyDown") return;
-    const ctrl = input.control || input.meta;
-    if (ctrl && input.key === "q") {
-      isQuitting = true;
-      app.quit();
-    } else if (ctrl && input.shift && input.key === "I") {
-      mainWindow.webContents.toggleDevTools();
-    } else if (ctrl && input.shift && input.key === "R") {
-      mainWindow.webContents.reloadIgnoringCache();
-    } else if (ctrl && !input.shift && input.key === "r") {
-      mainWindow.webContents.reload();
-    } else if (ctrl && (input.key === "=" || input.key === "+")) {
-      mainWindow.webContents.setZoomLevel(
-        mainWindow.webContents.getZoomLevel() + 0.5,
-      );
-    } else if (ctrl && input.key === "-") {
-      mainWindow.webContents.setZoomLevel(
-        mainWindow.webContents.getZoomLevel() - 0.5,
-      );
-    } else if (ctrl && input.key === "0") {
-      mainWindow.webContents.setZoomLevel(0);
-    }
-  });
-
-  // --- Media & notification permissions ---
-  session
-    .fromPartition("persist:wave")
-    .setPermissionRequestHandler((webContents, permission, callback) => {
-      const allowed = ["media", "notifications", "mediaKeySystem"];
-      const url = webContents.getURL();
-      if (
-        url.startsWith("https://web.whatsapp.com") &&
-        allowed.includes(permission)
-      ) {
-        callback(true);
-      } else {
-        callback(false);
-      }
-    });
+  // Send desktop notification only when window is hidden or unfocused
+  const windowHiddenOrBlurred =
+    !mainWindow.isVisible() || !mainWindow.isFocused();
+  if (count > lastUnreadCount && windowHiddenOrBlurred) {
+    const diff = count - lastUnreadCount;
+    new Notification({
+      title: "Wave",
+      body: `${diff} new message${diff > 1 ? "s" : ""}`,
+      icon: TRAY_ICON,
+      silent: false,
+    }).show();
+    playNotificationSound();
+  }
+  lastUnreadCount = count;
 }
+
+// --- External links in default browser ---
+mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  if (!url.startsWith("https://web.whatsapp.com")) {
+    shell.openExternal(url);
+    return { action: "deny" };
+  }
+  return { action: "allow" };
+});
+
+mainWindow.webContents.on("will-navigate", (e, url) => {
+  if (!url.startsWith("https://web.whatsapp.com")) {
+    e.preventDefault();
+    shell.openExternal(url);
+  }
+});
+
+// --- Keyboard shortcuts (no menu bar needed) ---
+mainWindow.webContents.on("before-input-event", (_e, input) => {
+  if (input.type !== "keyDown") return;
+  const ctrl = input.control || input.meta;
+  if (ctrl && input.key === "q") {
+    isQuitting = true;
+    app.quit();
+  } else if (ctrl && input.shift && input.key === "I") {
+    mainWindow.webContents.toggleDevTools();
+  } else if (ctrl && input.shift && input.key === "R") {
+    mainWindow.webContents.reloadIgnoringCache();
+  } else if (ctrl && !input.shift && input.key === "r") {
+    mainWindow.webContents.reload();
+  } else if (ctrl && (input.key === "=" || input.key === "+")) {
+    mainWindow.webContents.setZoomLevel(
+      mainWindow.webContents.getZoomLevel() + 0.5,
+    );
+  } else if (ctrl && input.key === "-") {
+    mainWindow.webContents.setZoomLevel(
+      mainWindow.webContents.getZoomLevel() - 0.5,
+    );
+  } else if (ctrl && input.key === "0") {
+    mainWindow.webContents.setZoomLevel(0);
+  }
+});
+
+// --- Media & notification permissions ---
+session
+  .fromPartition("persist:wave")
+  .setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowed = ["media", "notifications", "mediaKeySystem"];
+    const url = webContents.getURL();
+    if (
+      url.startsWith("https://web.whatsapp.com") &&
+      allowed.includes(permission)
+    ) {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
 
 // ---------------------------------------------------------------------------
 // System tray
 // ---------------------------------------------------------------------------
 function createTray() {
-  tray = new Tray(join(__dirname, "assets", "icon.png"));
+  tray = new Tray(TRAY_ICON);
   tray.setToolTip("Wave");
 
   const menu = Menu.buildFromTemplate([
