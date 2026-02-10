@@ -29,11 +29,27 @@ A lightweight, unofficial WhatsApp Web client for Linux built with Electron. Foc
 
 ## Installation
 
+### Quick install (recommended)
+
+Clone the repo and run the install script. It will install dependencies, build the AppImage, copy it to `~/.local/bin/`, and create a `.desktop` entry so Wave appears in your application launcher.
+
+```bash
+git clone https://github.com/srijxnnn/wave.git
+cd wave
+chmod +x install.sh
+./install.sh
+```
+
+### Manual install
+
 ```bash
 git clone https://github.com/srijxnnn/wave.git
 cd wave
 npm install
+npm run build
 ```
+
+Then copy the AppImage from `dist/` wherever you like and run it.
 
 ## Usage
 
@@ -50,6 +66,17 @@ npm run build
 ```
 
 The packaged AppImage will be output to the `dist/` directory.
+
+## Uninstall
+
+Run the uninstall script to remove the AppImage and desktop entry:
+
+```bash
+chmod +x uninstall.sh
+./uninstall.sh
+```
+
+You will be prompted whether to also remove user data stored in `~/.config/Wave`.
 
 ## Project Structure
 
