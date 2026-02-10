@@ -1,0 +1,24 @@
+{
+  "name": "wave",
+  "productName": "Wave",
+  "version": "1.0.0",
+  "description": "Wave is a lightweight, unofficial WhatsApp Web client for Linux built with Electron, focused on performance, security, and native desktop integration.",
+  "license": "MIT",
+  "author": "Srijan Dhak",
+  "homepage": "https://github.com/srijxnnn/wave",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/srijxnnn/wave.git"
+  },
+  "type": "commonjs",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.0.0"
+  }
+}
